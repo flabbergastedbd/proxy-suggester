@@ -21,8 +21,8 @@ class ConnectionSocket():
         try:
             socket.gethostbyaddr(host)
         except Exception:
-            print("Proxy "+host+" is not valid")
-            return("Invalid Host")
+            #print("Proxy "+host+" is not valid")
+            return(404)
         
         try:
             self.s.connect((host,port))
@@ -33,16 +33,16 @@ class ConnectionSocket():
             data = str(self.s.recv(13))
             data = data.split()
             if data[-1] == '407':
-                print("Your credentials of "+host+" are incorrect")
-                return("Auth Failed")
+                #print("Your credentials of "+host+" are incorrect")
+                return(407)
             
-            print("Proxy Server at "+host+" is accepting connections at "+str(self.delay)+" seconds delay")
-            return("Success")
+            #print("Proxy Server at "+host+" is accepting connections at "+str(self.delay)+" seconds delay")
+            return(200)
          
         except socket.timeout:
-            print("Proxy Server at "+host+" is not responding at "+str(self.delay)+" seconds delay")
-            return("Time Out")
+            #print("Proxy Server at "+host+" is not responding at "+str(self.delay)+" seconds delay")
+            return(408)
             
         except socket.error:
-            print("Proxy Server at "+host+" is refusing connections")
-            return("Reject")
+            #print("Proxy Server at "+host+" is refusing connections")
+            return(504)

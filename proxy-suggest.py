@@ -6,53 +6,59 @@ Created on Sat Feb 16 12:05:31 2013
 """
 
 import connection, details_extractor
-import time
+import time, threading
 
 def keyFromValue(dictionary, value):
     for key in dictionary.keys():
         if dictionary[key] == value:
             return(key)
 
+def getTime(start):
+    instant = round(time.time()-start,0)
+    return("[%2d:%2d]"%(int(instant//60),int(instant%60)))    
+    
+start = time.time()    
+
 flag, user_data = details_extractor.extractData()
 if not flag:
     print(user_data)
     exit(0)
+global running
 
-connected_flag = False
-
-delay = 5
-
-while flag:
-    if not connected_flag:
-        running_proxies = {}
-        for proxy_data in user_data:
-            
-            sock_object = connection.ConnectionSocket(delay)
-            status = sock_object.tryToConnect(proxy_data[2],int(proxy_data[3]),proxy_data[0],proxy_data[1])
-            if status == "Success":
-                running_proxies[proxy_data[2]] = delay
-                
-        print("\n")
-        
-        if not running_proxies.keys():
-            delay += 2
-            connected_flag = False
-        elif len(running_proxies.keys()) == 1:
-            delay_list = running_proxies.values()
-            delay_list.sort()
-            if delay != 1:
-                delay -= 2
-            print("The immediate choice for you right now is "+keyFromValue(running_proxies,delay_list[0]))
-            print("\n")            
-            connected_flag = True
-        else:
-            print("The immediate choices for you right now are "+str(running_proxies.keys()))
-            print("\n")
-            time.sleep(5)
-            if delay != 1:
-                delay -= 2
-            connected_flag = False
-            
-    else:
-        time.sleep(30)
-        connected_flag = False
+class ConnectThread(threading.Thread):
+    def __init__(self,host,port,username,password,delay):
+        super(ConnectThread, self).__init__()
+        self.delay = delay
+        self.host = host
+        self.password = password
+        self.port = port
+        self.username = username
+    def run(self):
+        while True:
+            sock_object = connection.ConnectionSocket(self.delay)
+            status = sock_object.tryToConnect(self.host,self.port,self.username,self.password)
+            if status == 200:
+                print(getTime(start)+" Proxy "+str(self.host)+" is accepting connections at delay "+str(self.delay))
+                if self.delay != 0.1:
+                    self.delay -= 0.1
+                time.sleep(10)
+            elif status == 408:
+                print(getTime(start)+" Proxy "+str(self.host)+" is not responding at delay "+str(self.delay))
+                self.delay += 0.1
+                time.sleep(1)
+            elif status == 407:
+                print(getTime(start)+" Incorrect credentials provided for "+str(self.host))
+                exit()
+            elif status == 404:
+                print(getTime(start)+" Proxy "+str(self.host)+" seems down or Invalid")
+            elif status == 504:
+                print(getTime(start)+" Proxy "+str(self.host)+" is refusing connections")
+                time.sleep(600)
+ 
+count = 0 
+thread_list = []
+if __name__ == "__main__":
+    for proxy_data in user_data:            
+        thread_list.append(ConnectThread(proxy_data[2],int(proxy_data[3]),proxy_data[0],proxy_data[1],0.5))
+        thread_list[count].start()
+        count += 1
